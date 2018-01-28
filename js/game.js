@@ -89,7 +89,7 @@ function create ()
 
         }
 
-    });
+    }, this);
 
     this.matter.world.on('collisionactive', function (event, bodyA, bodyB) {
 
@@ -122,7 +122,7 @@ function create ()
             }
         }
 
-    });
+    }, this);
 
     /* this.matter.world.on('collisionend', function (event, bodyA, bodyB) {
 
@@ -254,7 +254,8 @@ function create ()
 
 function update (time, delta)
 {
-    onGround = this.matter.world.engine.pairs.collisionActive.length > 0;
+    onGround = this.matter.world.engine.pairs.collisionActive.length > 0
+        || this.matter.world.engine.pairs.collisionStart.length > 0;
 
     if(hookInProgress){
 
@@ -268,9 +269,7 @@ function update (time, delta)
         }
         else
         {
-            this.matter.world.engine.pairs.collisionActive.forEach(function (pair) {
-                pair.isActive = false;
-            });
+            ball.setVelocityY(-10);
         }
     }
     else
@@ -315,7 +314,7 @@ function update (time, delta)
         }
         else if (cursors.right.isDown)
         {
-            var vel = ball.body.velocity.x + 1;
+            var vel = ball.body.velocity.x + 1.5;
             /*if(vel > 10)
             {
                 vel = 10;
@@ -360,7 +359,7 @@ function update (time, delta)
     }
     else
     {*/
-        audio.seek = seek;
+    audio.seek = seek;
     //}
 
 }
