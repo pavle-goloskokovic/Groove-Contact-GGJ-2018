@@ -46,6 +46,8 @@ var game = new Phaser.Game(config);
 
 function preload ()
 {
+    text = this.add.text(10, 10, 'Loading...', { font: '26px \'VT323\', monospace', fill: '#ffffff' });
+
     this.load.image('ball', 'assets/images/wizball.png');
     //this.load.image('platform', 'assets/sprites/platform.png');
 
@@ -98,8 +100,6 @@ function create ()
         lifespan: 600,
         on: false
     });
-
-    text = this.add.text(10, 10, score, { font: '26px \'VT323\', monospace', fill: '#ffffff' });
 
     endExplosion = this.add.particles('jets').createEmitter({
         lifespan: 1000,
