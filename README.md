@@ -7,7 +7,7 @@ via airwaves to our ears and interpreted as sweet sweet funky music.
 
 Level terrain is generated based on the waveform of the underlying music track.
 
-The goal is to produce music track at desired playback rate of 1. 
+The goal is to produce music track at full speed. 
 Playing slower or faster decreases your score, depending on how slower or faster you play.
 
 Use **[SPACE]** key to plow trough the vinyl grooves with 100 points penalty or use **[<-]** arrow keys **[->]** to move above the grooves.
