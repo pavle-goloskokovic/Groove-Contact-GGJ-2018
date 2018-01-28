@@ -30,6 +30,17 @@ var onGround = false;
 var preHookVelocity;
 var hookInProgress = false;
 
+var trail = [];
+var trailGraphics;
+
+var thrust;
+
+var text;
+var score = 10000;
+
+var ended = false;
+
+var endExplosion;
 
 var game = new Phaser.Game(config);
 
@@ -37,6 +48,9 @@ function preload ()
 {
     this.load.image('ball', 'assets/images/wizball.png');
     //this.load.image('platform', 'assets/sprites/platform.png');
+
+    this.load.image('jets', 'assets/images/yellow.png');
+
 
     this.load.audio('joyride', [
         'assets/audio/Amnesty - Love Fades.mp3'
@@ -46,13 +60,56 @@ function preload ()
     ]);
 }
 
+function endCelebration()
+{
+    endExplosion.setPosition(ball.x, ball.y);
+    endExplosion.explode(8, ball.x /*+ Phaser.Math.Between(128, 672)*/, ball.y /*+ Phaser.Math.Between(28, 572)*/);
+
+    this.time.delayedCall(100, endCelebration, [], this);
+}
+
 function create ()
 {
     audio = this.sound.add('joyride');
-    audio.once('ended', function () {
+    audio.once('ended', function ()
+    {
+        ended = true;
+
         this.sound.play('end');
+
+        endCelebration.call(this);
+
+        hookInProgress = false;
+
     }, this);
     audio.play();
+
+    trailGraphics = this.add.graphics({
+        x: 0,
+        y: 0
+    });
+
+    thrust = this.add.particles('jets').createEmitter({
+        x: 1600,
+        y: 200,
+        angle: { min: 160, max: 200 },
+        scale: { start: 0.2, end: 0 },
+        blendMode: 'ADD',
+        lifespan: 600,
+        on: false
+    });
+
+    text = this.add.text(10, 10, score, { font: '26px \'VT323\', monospace', fill: '#ffffff' });
+
+    endExplosion = this.add.particles('jets').createEmitter({
+        lifespan: 1000,
+        speed: { min: 300, max: 400 },
+        alpha: { start: 1, end: 0 },
+        scale: { start: 0.5, end: 0 },
+        rotate: { start: 0, end: 360, ease: 'Power2' },
+        blendMode: 'ADD',
+        on: false
+    });
 
     //drawWaveform.call(this);
 
@@ -68,6 +125,8 @@ function create ()
             if((!hookInProgress && spaceButton.isDown)) {
 
                 hookInProgress = true;
+
+                score -= 100;
 
                 preHookVelocity = {
                     x: ball.body.velocity.x,
@@ -101,6 +160,8 @@ function create ()
             if((!hookInProgress && spaceButton.isDown)) {
 
                 hookInProgress = true;
+
+                score -= 100;
 
                 preHookVelocity = {
                     x: ball.body.velocity.x,
@@ -249,11 +310,13 @@ function create ()
 
     spaceButton = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
 
-
+    //sendCelebration.call(this);
 }
 
 function update (time, delta)
 {
+
+
     onGround = this.matter.world.engine.pairs.collisionActive.length > 0
         || this.matter.world.engine.pairs.collisionStart.length > 0;
 
@@ -270,6 +333,10 @@ function update (time, delta)
         else
         {
             ball.setVelocityY(-10);
+
+            thrust.setPosition(ball.x += 16, ball.y);
+            thrust.setSpeed(ball.body.velocity.x / 2);
+            thrust.emitParticle(16);
         }
     }
     else
@@ -299,7 +366,12 @@ function update (time, delta)
             ball.setVelocity(0, 0);
         }*/
 
-        if (cursors.left.isDown)
+        if(ended)
+        {
+            ball.setVelocityY(-2);
+            //ball.setVelocityX(1);
+        }
+        else if (cursors.left.isDown)
         {
             var vel = ball.body.velocity.x - 0.5;
             /*if(vel < 1)
@@ -314,7 +386,7 @@ function update (time, delta)
         }
         else if (cursors.right.isDown)
         {
-            var vel = ball.body.velocity.x + 1.5;
+            var vel = ball.body.velocity.x + 2.5;
             /*if(vel > 10)
             {
                 vel = 10;
@@ -322,7 +394,7 @@ function update (time, delta)
             ball.setVelocityX(vel);
 
             if((onGround || ball.body.velocity.x < 0.5) && !hookInProgress){
-                console.log('up');
+                //console.log('up');
 
                 ball.setVelocityY(-2);
             }
@@ -352,6 +424,13 @@ function update (time, delta)
 
     var seek = (ball.x / (audio.duration*800)) * audio.duration;
 
+    if(!hookInProgress && !ended)
+    {
+        score -= (Math.abs(seek-audio.seek)*1000)/delta * 10;
+    }
+
+    text.setText(Math.round(score));
+
     /*if(!audio.isPlaying){
         audio.play({
             seek: seek
@@ -361,6 +440,35 @@ function update (time, delta)
     {*/
     audio.seek = seek;
     //}
+
+    trail.unshift({
+        position: {x: ball.x, y: ball.y},
+        speed: ball.body.speed
+    });
+
+    trailGraphics.clear();
+
+    for (var i = 0; i < trail.length; i += 1) {
+        var point = trail[i].position,
+            speed = trail[i].speed;
+
+        var hue = Math.round(Math.min(1, speed / 20) * 255);
+        //console.log(hue);
+
+
+
+        //render.context.fillStyle = 'hsl(' + hue + ', 100%, 55%)'; // a 0.7
+        trailGraphics.fillStyle(rgbToHex(255, hue, 26), 0.7);
+        //render.context.fillRect(point.x, point.y, 2, 2);
+        trailGraphics.fillCircle(point.x, point.y, 2);
+    }
+
+    if (trail.length > 200) {
+        trail.pop();
+    }
+
+    text.x = ball.x - 40;
+    text.y = ball.y - 60;
 
 }
 
@@ -528,4 +636,39 @@ function drawWaveform()
 
     graphics.closePath();
     graphics.strokePath();
+}
+
+function hslToRgb(h, s, l){
+    var r, g, b;
+
+    if(s === 0){
+        r = g = b = l; // achromatic
+    }else{
+        var hue2rgb = function hue2rgb(p, q, t){
+            if(t < 0) t += 1;
+            if(t > 1) t -= 1;
+            if(t < 1/6) return p + (q - p) * 6 * t;
+            if(t < 1/2) return q;
+            if(t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+            return p;
+        };
+
+        var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        var p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1/3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1/3);
+    }
+
+    return rgbToHex(r * 255, g * 255, b * 255);
+}
+
+
+function componentToHex(c) {
+    var hex = c.toString(16);
+    return hex.length === 1 ? "0" + hex : hex;
+}
+
+function rgbToHex(r, g, b) {
+    return parseInt("0x" + componentToHex(r) + componentToHex(g) + componentToHex(b), 16);
 }
