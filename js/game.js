@@ -22,9 +22,13 @@ var config = {
 
 var ball;
 var cursors;
+var spaceButton;
 var audio;
 
 var onGround = false;
+
+var preHookVelocity;
+var hookInProgress = false;
 
 
 var game = new Phaser.Game(config);
@@ -35,14 +39,19 @@ function preload ()
     //this.load.image('platform', 'assets/sprites/platform.png');
 
     this.load.audio('joyride', [
-        'assets/audio/CatAstroPhi_shmup_normal.ogg',
-        'assets/audio/CatAstroPhi_shmup_normal.mp3'
+        'assets/audio/Amnesty - Love Fades.mp3'
+    ]);
+    this.load.audio('end', [
+        'assets/audio/Amnesty - Love Fades -full.mp3'
     ]);
 }
 
 function create ()
 {
     audio = this.sound.add('joyride');
+    audio.once('ended', function () {
+        this.sound.play('end');
+    }, this);
     audio.play();
 
     //drawWaveform.call(this);
@@ -55,9 +64,29 @@ function create ()
         bodyB.gameObject.setTint(0x00ff00);*/
         if(bodyA.gameObject.name === 'ball' || bodyB.gameObject.name === 'ball')
         {
-            console.log(' onGround = true');
 
-            onGround = true;
+            if((!hookInProgress && spaceButton.isDown)) {
+
+                hookInProgress = true;
+
+                preHookVelocity = {
+                    x: ball.body.velocity.x,
+                    y: ball.body.velocity.y
+                };
+
+                ball.setVelocityX(20);
+                ball.setVelocityY(-10);
+
+                event.pairs.forEach(function (pair) {
+                    pair.isActive = false;
+                });
+            }else if(hookInProgress) {
+
+                event.pairs.forEach(function (pair) {
+                    pair.isActive = false;
+                });
+            }
+
         }
 
     });
@@ -68,23 +97,61 @@ function create ()
         bodyB.gameObject.setTint(0x00ff00);*/
         if(bodyA.gameObject.name === 'ball' || bodyB.gameObject.name === 'ball')
         {
-            console.log(' onGround = true');
 
-            onGround = true;
+            if((!hookInProgress && spaceButton.isDown)) {
+
+                hookInProgress = true;
+
+                preHookVelocity = {
+                    x: ball.body.velocity.x,
+                    y: ball.body.velocity.y
+                };
+
+                ball.setVelocityX(20);
+                ball.setVelocityY(-10);
+
+                event.pairs.forEach(function (pair) {
+                    pair.isActive = false;
+                });
+            }
+            else if(hookInProgress) {
+
+                event.pairs.forEach(function (pair) {
+                    pair.isActive = false;
+                });
+            }
         }
 
     });
 
-    this.matter.world.on('collisionend', function (event, bodyA, bodyB) {
+    /* this.matter.world.on('collisionend', function (event, bodyA, bodyB) {
 
-        if(bodyA.gameObject.name === 'ball' || bodyB.gameObject.name === 'ball')
-        {
-            console.log('onGround = false');
+         if((bodyA.gameObject.name === 'ball' || bodyB.gameObject.name === 'ball')
+         )
+         {
+             activeCollisions--;
 
-            onGround = false;
-        }
+             if(activeCollisions === 0)
+             {
+                 console.log('onGround = false');
 
-    });
+                 onGround = false;
+
+                 if(hookInProgress)
+                 {
+                     hookInProgress = false;
+
+                     ball.body.velocity.x = preHookVelocity.x;
+                     ball.body.velocity.y = preHookVelocity.y;
+                     preHookVelocity = null;
+                 }
+             }
+
+             console.log('activeCollisions = ' + activeCollisions);
+
+         }
+
+     });*/
 
     ball = this.matter.add.image(0, 0, 'ball');
 
@@ -139,18 +206,36 @@ function create ()
 
     var yScale = 400;
 
+    var vertices = [];
+
+    vertices.push({x: 0, y: 0});
+    vertices.push({x: 0, y: -data[0]*yScale});
+    vertices.push({x: 600, y: -data[0]*yScale});
+    vertices.push({x: 600, y: 0});
+
+    var center = Phaser.Physics.Matter.Matter.Vertices.centre(vertices);
+
+    this.matter.add.fromVertices(-600 + center.x, 600 + center.y, vertices, {
+        isStatic: true,
+        render: {
+            fillStyle: '#2e2b44',
+            strokeStyle: '#2e2b44',
+            lineWidth: 1
+        }
+    }, true, 0.01, 10);
+
     for(var i=0; i<data.length-1; i++)
     {
-        var vertices = [];
+        vertices = [];
 
         vertices.push({x: 0, y: 0});
         vertices.push({x: 0, y: -data[i]*yScale});
         vertices.push({x: 100, y: -data[i+1]*yScale});
         vertices.push({x: 100, y: 0});
 
-        var center = Phaser.Physics.Matter.Matter.Vertices.centre(vertices);
+        center = Phaser.Physics.Matter.Matter.Vertices.centre(vertices);
 
-        var asdawd = this.matter.add.fromVertices(i*100 + center.x, 600 + center.y, vertices, {
+        this.matter.add.fromVertices(i*100 + center.x, 600 + center.y, vertices, {
             isStatic: true,
             render: {
                 fillStyle: '#2e2b44',
@@ -162,78 +247,121 @@ function create ()
 
     cursors = this.input.keyboard.createCursorKeys();
 
+    spaceButton = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
+
 }
 
 function update (time, delta)
 {
+    onGround = this.matter.world.engine.pairs.collisionActive.length > 0;
 
-    var v = 800 / 60;
-    /*if (ball.y > 600)
-    {
-        ball.setPosition(50, 0);
-        ball.setVelocity(0, 0);
-    }*/
+    if(hookInProgress){
 
-    if (cursors.left.isDown)
-    {
-        var vel = ball.body.velocity.x - 0.5;
-        /*if(vel < 1)
+        if(!onGround)
         {
-            vel = 1;
-        }*/
-        ball.setVelocityX(vel);
+            hookInProgress = false;
 
-        if(onGround){
-            ball.setVelocityY(-2);
+            ball.body.velocity.x = preHookVelocity.x;
+            ball.body.velocity.y = preHookVelocity.y;
+            preHookVelocity = null;
         }
-    }
-    else if (cursors.right.isDown)
-    {
-        var vel = ball.body.velocity.x + 0.5;
-        /*if(vel > 10)
+        else
         {
-            vel = 10;
-        }*/
-        ball.setVelocityX(vel);
-
-        if(onGround || ball.body.velocity.x < 0.5){
-            console.log('up');
-
-            ball.setVelocityY(-2);
+            this.matter.world.engine.pairs.collisionActive.forEach(function (pair) {
+                pair.isActive = false;
+            });
         }
     }
     else
     {
-        //ball.setVelocityX(1);
-    }
+        /*if(spaceButton.isDown && onGround)
+        {
+            hookInProgress = true;
 
-    /*if (cursors.up.isDown)
-    {
-        ball.setVelocityY(-2);
+            preHookVelocity = {
+                x: ball.body.velocity.x,
+                y: ball.body.velocity.y
+            };
+
+            ball.setVelocityX(20);
+            ball.setVelocityY(-10);
+
+            this.matter.world.engine.pairs.collisionActive.forEach(function (pair) {
+                pair.isActive = false;
+            });
+        }
+        else
+        {*/
+        var v = 800 / 60;
+        /*if (ball.y > 600)
+        {
+            ball.setPosition(50, 0);
+            ball.setVelocity(0, 0);
+        }*/
+
+        if (cursors.left.isDown)
+        {
+            var vel = ball.body.velocity.x - 0.5;
+            /*if(vel < 1)
+            {
+                vel = 1;
+            }*/
+            ball.setVelocityX(vel);
+
+            if(onGround && !hookInProgress){
+                ball.setVelocityY(-2);
+            }
+        }
+        else if (cursors.right.isDown)
+        {
+            var vel = ball.body.velocity.x + 1;
+            /*if(vel > 10)
+            {
+                vel = 10;
+            }*/
+            ball.setVelocityX(vel);
+
+            if((onGround || ball.body.velocity.x < 0.5) && !hookInProgress){
+                console.log('up');
+
+                ball.setVelocityY(-2);
+            }
+        }
+        else
+        {
+            //ball.setVelocityX(1);
+        }
+
+        /*if (cursors.up.isDown)
+        {
+            ball.setVelocityY(-2);
+        }
+        else if (cursors.down.isDown)
+        {
+            ball.setVelocityY(2);
+        }
+        else
+        {
+            //ball.setVelocityY(1);
+        }*/
+
+        //console.log(ball.body.velocity.x);
+        //console.log(seek);
+        //}
     }
-    else if (cursors.down.isDown)
-    {
-        ball.setVelocityY(2);
-    }
-    else
-    {
-        //ball.setVelocityY(1);
-    }*/
 
     var seek = (ball.x / (audio.duration*800)) * audio.duration;
 
-    if(!audio.isPlaying){
+    /*if(!audio.isPlaying){
         audio.play({
             seek: seek
         })
     }
     else
-    {
+    {*/
         audio.seek = seek;
-    }
-
-    //console.log(ball.body.velocity.x);
-    //console.log(seek);
+    //}
 
 }
 
